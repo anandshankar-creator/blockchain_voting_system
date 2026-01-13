@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+backend/.env
+smart_contracts/.env
+
+# Hardhat
+smart_contracts/artifacts/
+smart_contracts/cache/
+smart_contracts/typechain-types/
+
+# Misc
+.DS_Store
+coverage/
+.nyc_output/
