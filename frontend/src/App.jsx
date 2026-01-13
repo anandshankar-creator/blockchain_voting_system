@@ -12,6 +12,8 @@ function App() {
   const [txDetails, setTxDetails] = useState(null);
   const [account, setAccount] = useState(null);
   const [isRegistered, setIsRegistered] = useState(false);
+  const [owner, setOwner] = useState(null);
+  const [adminInput, setAdminInput] = useState("");
 
   useEffect(() => {
     fetchCandidates();
@@ -21,6 +23,7 @@ function App() {
   useEffect(() => {
     if (account) {
       checkRegistrationStatus();
+      checkOwner();
     }
   }, [account]);
 
@@ -51,6 +54,13 @@ function App() {
     }
   };
 
+  const disconnectWallet = () => {
+    setAccount(null);
+    setIsRegistered(false);
+    setOwner(null);
+    setStatus("Wallet Disconnected. Please connect a different account.");
+  };
+
   const checkRegistrationStatus = async () => {
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
@@ -59,6 +69,17 @@ function App() {
       setIsRegistered(registered);
     } catch (err) {
       console.error("Error checking registration:", err);
+    }
+  };
+
+  const checkOwner = async () => {
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+      const ownerAddress = await contract.owner();
+      setOwner(ownerAddress.toLowerCase());
+    } catch (err) {
+      console.error("Error checking owner:", err);
     }
   };
 
@@ -73,20 +94,44 @@ function App() {
     }
   };
 
-  const handleRegister = async () => {
-    setStatus("Requesting Registration from Relayer...");
+  const handleRegister = async (addressToRegister = account) => {
+    setStatus(`Requesting Registration for ${addressToRegister}...`);
     try {
       const res = await fetch(`${API_URL}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ voterAddress: account })
+        body: JSON.stringify({ voterAddress: addressToRegister })
       });
       const data = await res.json();
       if (data.success) {
-        setStatus("Registration Successful! You can now vote.");
-        setIsRegistered(true);
+        setStatus(`Registration Successful for ${addressToRegister}`);
+        if (addressToRegister.toLowerCase() === account.toLowerCase()) {
+          setIsRegistered(true);
+        }
       } else {
         setStatus(`Registration Failed: ${data.error}`);
+      }
+    } catch (err) {
+      setStatus(`Network Error: ${err.message}`);
+    }
+  };
+
+  const handleUnregister = async (addressToUnregister) => {
+    setStatus(`Removing Voter ${addressToUnregister}...`);
+    try {
+      const res = await fetch(`${API_URL}/unregister`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voterAddress: addressToUnregister })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStatus(`Voter Unregistered Successfully: ${addressToUnregister}`);
+        if (addressToUnregister.toLowerCase() === account.toLowerCase()) {
+          setIsRegistered(false);
+        }
+      } else {
+        setStatus(`Removal Failed: ${data.error}`);
       }
     } catch (err) {
       setStatus(`Network Error: ${err.message}`);
@@ -101,7 +146,7 @@ function App() {
     }
 
     if (!isRegistered) {
-      setStatus("You must register before voting!");
+      setStatus("Your wallet address is not registered by admin!");
       return;
     }
 
@@ -134,10 +179,12 @@ function App() {
     }
   };
 
+  const isAdmin = account && owner && account.toLowerCase() === owner;
+
   return (
     <div className="min-h-screen bg-gray-900 text-white font-sans p-8">
       <div className="max-w-4xl mx-auto">
-        <header className="flex justify-between items-center mb-12">
+        <header className="flex justify-between items-center mb-12 flex-wrap gap-4">
           <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600">
             Campus Voting System
           </h1>
@@ -150,13 +197,17 @@ function App() {
                 <div className="bg-blue-900/30 border border-blue-500/50 px-4 py-2 rounded-full font-mono text-sm text-blue-300">
                   {account.slice(0, 6)}...{account.slice(-4)}
                 </div>
+                {isAdmin && <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded font-bold">ADMIN</span>}
                 {isRegistered ? (
                   <span className="bg-green-600 text-white text-xs px-2 py-1 rounded">Registered</span>
                 ) : (
-                  <button onClick={handleRegister} className="bg-yellow-600 hover:bg-yellow-500 text-white text-xs px-3 py-2 rounded font-bold transition-all">
+                  !isAdmin && <button onClick={() => handleRegister(account)} className="bg-yellow-600 hover:bg-yellow-500 text-white text-xs px-3 py-2 rounded font-bold transition-all">
                     Register Now
                   </button>
                 )}
+                <button onClick={disconnectWallet} className="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-2 rounded font-bold transition-all">
+                  Disconnect
+                </button>
               </div>
             ) : (
               <button
@@ -170,6 +221,33 @@ function App() {
         </header>
 
         <main className="space-y-8">
+          {isAdmin && (
+            <div className="bg-purple-900/20 p-6 rounded-lg border border-purple-500/50 mb-8 animate-fade-in">
+              <h2 className="text-xl font-bold text-purple-300 mb-4">👑 Admin Controls</h2>
+              <div className="flex gap-4">
+                <input
+                  type="text"
+                  placeholder="Voter Address (0x...)"
+                  value={adminInput}
+                  onChange={(e) => setAdminInput(e.target.value)}
+                  className="flex-1 bg-gray-800 border border-gray-600 rounded px-4 py-2 text-white focus:outline-none focus:border-purple-500"
+                />
+                <button
+                  onClick={() => handleRegister(adminInput)}
+                  className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded font-bold"
+                >
+                  Register Voter
+                </button>
+                <button
+                  onClick={() => handleUnregister(adminInput)}
+                  className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded font-bold"
+                >
+                  Remove Voter
+                </button>
+              </div>
+            </div>
+          )}
+
           {status && (
             <div className={`p-4 rounded border-l-4 ${status.includes("Error") || status.includes("Reverted") || status.includes("Failed") ? "bg-red-900/50 border-red-500 text-red-200" : "bg-gray-800 border-blue-500 text-blue-300"} animate-fade-in`}>
               <p className="font-bold">{status}</p>

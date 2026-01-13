@@ -4,7 +4,7 @@ const { ethers } = require('ethers');
 require('dotenv').config();
 
 // Contract ABI (Import from artifacts after compilation)
-const CONTRACT_ABI = require('../smart_contracts/artifacts/contracts/Voting.sol/Voting.json').abi;
+const CONTRACT_ABI = require('./Voting.json').abi;
 // Placeholder address, update after deployment
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || require('./contract-address.json').address;
 
@@ -84,6 +84,24 @@ app.post('/register', async (req, res) => {
         const tx = await contract.registerVoter(voterAddress);
         await tx.wait();
         console.log(`Registered ${voterAddress}`);
+        res.json({ success: true, txHash: tx.hash });
+    } catch (error) {
+        console.error(error);
+        const reason = error.reason || error.message;
+        res.status(500).json({ error: reason });
+    }
+});
+
+app.post('/unregister', async (req, res) => {
+    const { voterAddress } = req.body;
+    if (!voterAddress) return res.status(400).json({ error: "Address required" });
+
+    try {
+        const contract = await getContract();
+        console.log(`Unregistering voter: ${voterAddress}...`);
+        const tx = await contract.unregisterVoter(voterAddress);
+        await tx.wait();
+        console.log(`Unregistered ${voterAddress}`);
         res.json({ success: true, txHash: tx.hash });
     } catch (error) {
         console.error(error);

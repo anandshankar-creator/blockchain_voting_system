@@ -1,4 +1,4 @@
-export const CONTRACT_ADDRESS = "0x87cd85a404eFa9DacFeFF59B5C0E2522660B390e";
+export const CONTRACT_ADDRESS = "0x87b8b329D35580abae00d214426004543004C962";
 export const CONTRACT_ABI = [
     {
         "inputs": [],
@@ -182,6 +182,19 @@ export const CONTRACT_ABI = [
             }
         ],
         "name": "registerVoter",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "_voter",
+                "type": "address"
+            }
+        ],
+        "name": "unregisterVoter",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"

@@ -43,6 +43,12 @@ contract Voting {
         emit VoterRegistered(_voter);
     }
 
+    function unregisterVoter(address _voter) public onlyOwner {
+        require(registeredVoters[_voter], "Voter is not registered");
+        require(!hasVoted[_voter], "Cannot remove voter who has already voted");
+        registeredVoters[_voter] = false;
+    }
+
     function vote(uint256 _candidateId) public onlyRegistered(msg.sender) {
         _castVote(msg.sender, _candidateId);
     }
