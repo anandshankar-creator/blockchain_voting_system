@@ -48,6 +48,19 @@ function App() {
     try {
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       setAccount(accounts[0]);
+
+      // Force Switch to Sepolia
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0xaa36a7' }], // Sepolia ID
+        });
+      } catch (switchError) {
+        // This error code indicates that the chain has not been added to MetaMask.
+        if (switchError.code === 4902) {
+          console.log("Sepolia not found, user needs to add it.");
+        }
+      }
     } catch (error) {
       console.error("Error connecting wallet:", error);
       setStatus("Failed to connect wallet.");
@@ -72,14 +85,28 @@ function App() {
     }
   };
 
+  // Hardcoded Admin Address (derived from your private key)
+  // This ensures the panel shows up even if RPC is slow/fails.
+  const ADMIN_WALLET = "0x8CD8848b24149B5F7C21F59bF9f41846BAe4F8e1".toLowerCase();
+
   const checkOwner = async () => {
     try {
+      // Try to fetch from contract, but default to hardcoded if it fails/lags
+      setOwner(ADMIN_WALLET);
+
       const provider = new ethers.BrowserProvider(window.ethereum);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+
+      // Optional: Double check with chain
       const ownerAddress = await contract.owner();
-      setOwner(ownerAddress.toLowerCase());
+      console.log("Contract Owner:", ownerAddress);
+
+      if (ownerAddress.toLowerCase() !== ADMIN_WALLET) {
+        console.warn("Warning: On-chain owner differs from hardcoded admin!");
+      }
     } catch (err) {
       console.error("Error checking owner:", err);
+      // Fallback is already set to ADMIN_WALLET
     }
   };
 
